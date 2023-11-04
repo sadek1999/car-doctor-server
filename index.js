@@ -1,19 +1,15 @@
 const express = require('express');
 const cors = require('cors');
+const jwt=require('jsonwebtoken')
 require('dotenv').config()
 const app=express();
 const port=process.env.port||5002;
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const e = require('express');
 
 //  middleware
  app.use(cors());
  app.use(express.json());
-
-
-
-
-
-
 
 
 
@@ -32,12 +28,80 @@ const { MongoClient, ServerApiVersion } = require('mongodb');
    try {
      // Connect the client to the server	(optional starting in v4.7)
      await client.connect();
+     const serviceCallection=client.db('carDB').collection("service")
+     const bookingCallection=client.db('carDB').collection('bookings')
+
+  app.post('/jwt',async(req,res)=>{
+    const user=req.body;
+    console.log(user)
+   const tooken= jwt.sign(user, 'secret', { expiresIn: '1h' });
+    res.send(tooken)
+
+  })
+
+
+     app.get('/service',async(req,res)=>{
+        const carsour=serviceCallection.find();
+        const result= await carsour.toArray();
+        res.send(result)
+     })
+
+     app.get('/service/:id',async(req,res)=>{
+        const id=req.params.id;
+        const query= {_id:new ObjectId(id)}
+        const options = {
+            
+            projection: {  title: 1, price: 1,service_id:1,img:1 },
+          };
+        
+        const result= await serviceCallection.findOne(query ,options);
+        res.send(result)
+     })
+
+
+      app.get('/bookings',async(req,res)=>{
+        let query={}
+        console.log(req.query.email);
+        if(req.query?.email){
+          query={ email :  req.query.email}
+        }
+        const result= await bookingCallection.find(query).toArray()
+        res.send(result);
+      })
+
+     app.post('/bookings',async(req,res)=>{
+       const booking=req.body;
+      //  console.log(booking)
+       const result=await bookingCallection.insertOne(booking);
+       res.send(result);
+     })
+
+     app.patch('/bookings/:id',async(req,res)=>{
+      const id=req.params.id;
+      const query={_id:new ObjectId(id)}
+      const bookings=req.body;
+      console.log(bookings)
+      const updater={
+        $set :{
+         status:bookings.status,
+        }
+      };
+      const result= await bookingCallection.updateOne(query,updater)
+      res.send(result)
+     })
+
+     app.delete('/bookings/:id',async(req,res)=>{
+       const id=req.params.id;
+       const query={_id:new ObjectId(id)}
+       const result= await bookingCallection.deleteOne(query);
+       res.send(result)
+     })
      // Send a ping to confirm a successful connection
      await client.db("admin").command({ ping: 1 });
      console.log("Pinged your deployment. You successfully connected to MongoDB!");
    } finally {
      // Ensures that the client will close when you finish/error
-     await client.close();
+    //  await client.close();
    }
  }
  run().catch(console.dir);
